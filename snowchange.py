@@ -6,7 +6,7 @@ import hashlib
 import snowflake.connector
 
 # Set a few global variables here
-_snowchange_version = '2.1.1'
+_snowchange_version = '2.2.0'
 _metadata_database_name = 'METADATA'
 _metadata_schema_name = 'SNOWCHANGE'
 _metadata_table_name = 'CHANGE_HISTORY'
@@ -82,6 +82,7 @@ def snowchange(root_folder, snowflake_account, snowflake_region, snowflake_user,
   print("Successfully applied %d change scripts (skipping %d)" % (scripts_applied, scripts_skipped))
   print("Completed successfully")
 
+
 # This function will return a list containing the parts of the key (split by number parts)
 # Each number is converted to and integer and string parts are left as strings
 # This will enable correct sorting in python when the lists are compared
@@ -91,8 +92,10 @@ def get_alphanum_key(key):
   alphanum_key = [ convert(c) for c in re.split('([0-9]+)', key) ]
   return alphanum_key
 
+
 def sorted_alphanumeric(data):
   return sorted(data, key=get_alphanum_key)
+
 
 def get_all_scripts_recursively(root_directory, verbose):
   all_files = dict()
@@ -125,6 +128,7 @@ def get_all_scripts_recursively(root_directory, verbose):
 
   return all_files
 
+
 def execute_snowflake_query(snowflake_database, query, verbose):
   con = snowflake.connector.connect(
     user=os.environ["SNOWFLAKE_USER"],
@@ -132,31 +136,11 @@ def execute_snowflake_query(snowflake_database, query, verbose):
     role=os.environ["SNOWFLAKE_ROLE"],
     warehouse=os.environ["SNOWFLAKE_WAREHOUSE"],
     database=snowflake_database,
-    region=os.environ.get("SNOWFLAKE_WAREHOUSE") if os.environ.get("SNOWFLAKE_REGION") else '',  # no region if not specified
+    # '' is a reference to snowflake.connector region default if not specified
+    region=os.environ.get("SNOWFLAKE_WAREHOUSE") if os.environ.get("SNOWFLAKE_REGION") else '',
     authenticator=os.environ["SNOWFLAKE_AUTHENTICATOR"],
     password=os.environ["SNOWSQL_PWD"],
   )
-  # if os.environ.get("SNOWFLAKE_REGION"):
-  #   con = snowflake.connector.connect(
-  #     user = os.environ["SNOWFLAKE_USER"],
-  #     account = os.environ["SNOWFLAKE_ACCOUNT"],
-  #     role = os.environ["SNOWFLAKE_ROLE"],
-  #     warehouse = os.environ["SNOWFLAKE_WAREHOUSE"],
-  #     database = snowflake_database,
-  #     region = os.environ["SNOWFLAKE_REGION"],  # no region if not specified
-  #     authenticator = os.environ["SNOWFLAKE_AUTHENTICATOR"],
-  #     password = os.environ["SNOWSQL_PWD"],
-  #   )
-  # else:
-  #   con = snowflake.connector.connect(
-  #     user = os.environ["SNOWFLAKE_USER"],
-  #     account = os.environ["SNOWFLAKE_ACCOUNT"],
-  #     role = os.environ["SNOWFLAKE_ROLE"],
-  #     warehouse = os.environ["SNOWFLAKE_WAREHOUSE"],
-  #     database = snowflake_database,
-  #     authenticator = os.environ["SNOWFLAKE_AUTHENTICATOR"],
-  #     password = os.environ["SNOWSQL_PWD"],
-  #   )
 
   if verbose:
       print("SQL query: %s" % query)
@@ -166,6 +150,7 @@ def execute_snowflake_query(snowflake_database, query, verbose):
     return con.execute_string(query)
   finally:
     con.close()
+
 
 def get_change_history_table_details(change_history_table_override):
   # Start with the global defaults
@@ -192,6 +177,7 @@ def get_change_history_table_details(change_history_table_override):
 
   return details
 
+
 def create_change_history_table_if_missing(change_history_table, verbose):
   # Create the database if it doesn't exist
   query = "CREATE DATABASE IF NOT EXISTS {0}".format(change_history_table['database_name'])
@@ -205,6 +191,7 @@ def create_change_history_table_if_missing(change_history_table, verbose):
   query = "CREATE TABLE IF NOT EXISTS {0}.{1} (VERSION VARCHAR, DESCRIPTION VARCHAR, SCRIPT VARCHAR, SCRIPT_TYPE VARCHAR, CHECKSUM VARCHAR, EXECUTION_TIME NUMBER, STATUS VARCHAR, INSTALLED_BY VARCHAR, INSTALLED_ON TIMESTAMP_LTZ)".format(change_history_table['schema_name'], change_history_table['table_name'])
   execute_snowflake_query(change_history_table['database_name'], query, verbose)
 
+
 def fetch_change_history(change_history_table, verbose):
   query = 'SELECT VERSION FROM {0}.{1}'.format(change_history_table['schema_name'], change_history_table['table_name'])
   results = execute_snowflake_query(change_history_table['database_name'], query, verbose)
@@ -216,6 +203,7 @@ def fetch_change_history(change_history_table, verbose):
       change_history.append(row[0])
 
   return change_history
+
 
 def apply_change_script(script, change_history_table, verbose):
   # First read the contents of the script
@@ -243,8 +231,8 @@ def apply_change_script(script, change_history_table, verbose):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(
     prog='python snowchange.py',
-    description='Apply schema changes to a Snowflake account. Full readme at https://github.com/jamesweakley/snowchange',
-    formatter_class = argparse.RawTextHelpFormatter,
+    description='Apply schema changes to a Snowflake account. Full readme at https://github.com/highspot/snowchange/',
+    formatter_class=argparse.RawTextHelpFormatter,
   )
   parser.add_argument(
     '-f',
